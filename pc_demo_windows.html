@@ -513,16 +513,22 @@ function codeToKey(code) {
   return null;
 }
 
+// 한글 IME 등이 켜져 있으면 키 한 번에 keydown이 두 번 오는 경우가 있다(플러스 켜졌다 바로 꺼짐, 글자 두 번).
+// 그래서 keyup이 올 때까지 같은 키의 keydown은 한 번만 받는다.
+const heldCodes = new Set();
+window.addEventListener('blur', () => heldCodes.clear());
 window.addEventListener('keydown', (e) => {
-  if (e.repeat) { e.preventDefault(); return; }   // 키 꾹 누름(자동 반복) 무시
+  if (e.repeat || heldCodes.has(e.code)) { if (codeToKey(e.code) !== null) e.preventDefault(); return; }   // 자동 반복·중복 무시
   const k = codeToKey(e.code);
   if (k === null) return;                          // 안 쓰는 키(F5 등)는 그대로 통과
+  heldCodes.add(e.code);
   e.preventDefault();
   const hitKey = (k === ' ') ? null : k;
   if (hitKey && hitEls[hitKey]) hitEls[hitKey].classList.add('press');
   handleInput(k);
 });
 window.addEventListener('keyup', (e) => {
+  heldCodes.delete(e.code);
   const k = codeToKey(e.code);
   const el = (k && k !== ' ') ? hitEls[k] : null;
   if (el) el.classList.remove('press');
